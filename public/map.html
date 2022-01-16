@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Title</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <script src="tint.js"></script>
+      <script src="Nation.js"></script>
+      <script src="saveBooter.js"></script>
+      <script src="mapController.js"></script>
+      <script src="Province.js"></script>
+      <script src="Europe.js"></script>
+      <script src="Province.js"></script>
+    </head>
+    <body>
+      <div class="w3-sidebar w3-light-grey w3-bar-block w3-card-4" style="width:120px; top:0">
+        <button onclick="toMenu()" class=" w3-bar-item w3-button w3-green w3-hover-light-green">To Menu</button>
+        <input type="button" id="geoMode" class="w3-bar-item w3-hover-green" value="Geographic" onclick="map.updateAllOverlays(0)">
+        <input type="button" id="polMode" class="w3-bar-item w3-hover-green" value="Political" onclick="map.updateAllOverlays(1)">
+        <input type="button" id="devMode" class="w3-bar-item w3-hover-green" value="Development" onclick="map.updateAllOverlays(3)">
+        <input type="button" id="attMode" class="w3-bar-item w3-hover-green" value="Attrition" onclick="map.updateAllOverlays(4)">
+        <input type="button" id="brnMode" class="w3-bar-item w3-hover-green" value="Devastation" onclick="map.updateAllOverlays(5)">
+        <input type="button" id="frtMode" class="w3-bar-item w3-hover-green" value="Forts" onclick="map.updateAllOverlays(6)">
+        <input type="button" id="mitMode" class="w3-bar-item w3-hover-green" value="Troop Strength" onclick="map.updateAllOverlays(7)">
+        <!--<input type="button" id="dipMode" class="w3-bar-item w3-hover-green" value="Diplomatic" onclick="map.updateAllOverlays(8)">-->
+      </div>
+      <ul id="provInfo" class="w3-sidebar w3-light-grey w3-bar-block w3-ul w3-border w3-card-4 w3-hoverable" style="right: 0; width:150px; top:0">
+        <li onclick="toDb(true)" class="w3-bar-item w3-button w3-green w3-hover-light-green" style="text-align: center">Share Map</li>
+        <li onclick="toDb(false)" class="w3-bar-item w3-button w3-green w3-hover-light-green" style="text-align: center">View Maps</li>
+        <li class="w3-bar-item"><h2>Province Info</h2></li>
+        <li id="provName" class="w3-bar-item"></li>
+        <li id="provOwner" class="w3-bar-item"></li>
+        <li id="provCore" class="w3-bar-item"></li>
+        <li id="provDev" class="w3-bar-item"></li>
+        <li id="provBrn" class="w3-bar-item"></li>
+        <li id="provAtt" class="w3-bar-item"></li>
+        <li id="provFrt" class="w3-bar-item"></li>
+        <li id="provTroops" class="w3-bar-item"></li>
+      </ul>
+      <div style="width: 100%; margin-left: 125px">
+        <div class="container">
+            <div ondragstart="return false" class="drag-div initial-selected">
+                <img id="mapBackground" src="europe.png" style="width: 100%"/>
+            </div>
+        </div>
+        <input type="button" id="zoomout" class="w3-button w3-green w3-hover-light-green" value="Zoom out" onclick="zoom(0.5)">
+        <input type="button" id="zoomin" class="w3-button w3-green w3-hover-light-green" value="Zoom in" onclick="zoom(2)">
+      </div>
+    </body>
+    <script>
+      let dragItem = null;
+      let lastDragged = document.getElementsByClassName('initial-selected')[0];
+      let x_img_ele = 0;
+      let y_img_ele = 0;
+      var mapStr;
+      var fileName;
+      var map = null;
+      initMap();
+      
+      function initMap(){
+        map = new Europe();
+        mapStr = window.location.href;
+        mapStr = decodeURI(mapStr.substring(mapStr.indexOf("mapstr=")+7));
+        fileName = window.location.href;
+        fileName = decodeURI(fileName.substring(fileName.indexOf("file=")+5, fileName.indexOf("&")));
+        try{
+          buildVersion(mapStr, map);
+        }catch(e){
+          document.getElementById("mapBackground").src = "mapError.png";
+          return
+        }
+        for(let i=0; i<map.getList().length; ++i){
+          map.getList()[i].overlay.onload = function() {
+            let imgWidth = this.width;
+            let imgHeight = this.height;
+            map.getList()[i].initCanvas();
+            map.getList()[i].canvas.id = "map"+(i+1);
+            map.getList()[i].canvas.className = "province";
+            map.getList()[i].canvas.style = "position: absolute; top: "+map.getList()[i].getY()+"px; left: "+map.getList()[i].getX()+"px; width: "+(imgWidth*map.getOverscale())+"px; height: "+(imgHeight*map.overScale)+"px;";
+            map.getList()[i].canvas.addEventListener('click', function(){
+              document.getElementById("provName").innerHTML = "Name: "+map.getList()[i].name;
+              if(map.getList()[i].getOwner() !== null)
+                document.getElementById("provOwner").innerHTML = "Owner: "+map.getList()[i].getOwner().getName();
+              else
+                document.getElementById("provOwner").innerHTML = "Owner: Uninhabited";
+              if(map.getList()[i].getCoreOwner() !== null)
+                document.getElementById("provCore").innerHTML = "Core Owner: "+map.getList()[i].getCoreOwner().getName();
+              else
+                document.getElementById("provCore").innerHTML = "Core Owner: None";
+              document.getElementById("provDev").innerHTML = "Development: "+map.getList()[i].getDevelopment();
+              document.getElementById("provBrn").innerHTML = "Devastation: "+map.getList()[i].getDevastation();
+              document.getElementById("provAtt").innerHTML = "Attrition: "+map.getList()[i].getAttrition();
+              document.getElementById("provFrt").innerHTML = "Fort Level: "+map.getList()[i].getFortLevel();
+              document.getElementById("provTroops").innerHTML = "Legions: "+map.getList()[i].getTroops();
+            });
+            
+            document.getElementsByClassName('initial-selected')[0].appendChild(map.getList()[i].canvas);
+            
+          };
+          map.getList()[i].overlay.src = "europeMap/"+(i+1)+".png";
+        }
+      }
+      
+      function zoom(zoomincrement) {
+        let initialWidth = lastDragged.getBoundingClientRect().width;
+        let initialHeight = lastDragged.getBoundingClientRect().height;
+        let mapX = lastDragged.getBoundingClientRect().left;
+        let mapY = lastDragged.getBoundingClientRect().top;
+        console.log(lastDragged.style.width);
+        lastDragged.style.width = (initialWidth * zoomincrement) + 'px';
+        lastDragged.style.height = (initialHeight * zoomincrement) + 'px';
+        console.log(lastDragged.style.width);
+        
+        let zoomAdj = [1, 1];
+        for(let i=0; i<map.getList().length; ++i){
+          let provAt = document.getElementById('map'+(i+1));
+          provAt.style.left = (map.getList()[i].relX * lastDragged.getBoundingClientRect().width/100.0*zoomAdj[0]) + 'px';
+          provAt.style.top = (map.getList()[i].relY * lastDragged.getBoundingClientRect().height/100.0*zoomAdj[1]) + 'px';
+          provAt.style.width = (provAt.getBoundingClientRect().width * zoomincrement) + 'px';
+          provAt.style.height = (provAt.getBoundingClientRect().height * zoomincrement) + 'px';
+        }
+      }
+      
+      function start_drag() {
+        dragItem = this;
+        lastDragged = this;
+        x_img_ele = window.event.clientX - dragItem.offsetLeft;
+        y_img_ele = window.event.clientY - dragItem.offsetTop;
+      
+      }
+      
+      function stop_drag() {
+        dragItem = null;
+      }
+      
+      function while_drag() {
+        var x_cursor = window.event.clientX;
+        var y_cursor = window.event.clientY;
+        if (dragItem !== null) {
+          dragItem.style.left = (x_cursor - x_img_ele) + 'px';
+          dragItem.style.top = ( window.event.clientY - y_img_ele) + 'px';
+      
+            console.log(dragItem.style.left+' - '+dragItem.style.top);
+      
+        }
+      }
+      function toMenu(){
+        window.open("/", "_self");
+      }
+      function toDb(update){
+        if(update)
+          window.open("/login.html?file="+fileName+"&mapstr="+mapStr, "_self");
+        else
+          window.open("/database.html", "_self");
+      }
+      $('.drag-div').each(function () {
+        this.addEventListener('mousedown', start_drag);
+      });
+      $('.drag-div').each(function () {
+        this.addEventListener('mousemove', while_drag);
+        this.addEventListener('mouseup', stop_drag);
+      });
+    </script>
+</html>
+
+<style>
+    .drag-div {
+      overflow: hidden;
+      height:470px;
+      cursor: move;
+      position: relative;
+      width: 915px;
+      background-color: coral;
+    }
+    
+    .container {
+      overflow: hidden;
+      height:500px;
+    }

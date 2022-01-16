@@ -1,0 +1,197 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Title</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <body>
+        <div style="width:100%">
+            <button onclick="toMenu()" class="w3-half w3-button w3-green w3-hover-light-green">To Menu</button>
+            <button id="loginBtn" class="w3-half w3-button w3-green w3-hover-light-green"></button>
+        </div>
+        <h2 id="welcome" class="w3-center"></h2>
+        <div style="height:400px; width:100%; margin: auto;" class="w3-container w3-blue w3-card">
+            <ul id="saveHolder" class="w3-ul w3-half" style="width:50%; height:100%; overflow:auto;">
+                <li><h2>Public Maps</h2></li>
+            </ul>
+            <ul id="userSaveHolder" class="w3-ul w3-half" style="width:50%; height:100%; overflow:auto;">
+                <li><h2>User Maps</h2></li>
+            </ul>
+        </div>
+        <button onclick="toMap()" class="w3-button w3-green w3-hover-light-green">Open Save</button>
+        <button id="visToggle" onclick="setVisibility()" style="float: right; visibility: hidden;"></button>
+        <p id="showErr"></p>
+    </body>
+    <script>
+        let saves = [];
+        let queried = 0;
+        let name;
+        let username;
+        let userId;
+        dbInit();
+        let selectedSave;
+        function dbInit(){
+            name = getCookie("name");
+            username = getCookie("username");
+            userId = getCookie("userid");
+            if(name !== null && name !== ""){
+                document.getElementById("welcome").innerHTML = "Welcome "+name;
+                document.getElementById("loginBtn").innerHTML = "Logout";
+                document.getElementById("loginBtn").onclick = function(){logout()};
+            }
+            else{
+                document.getElementById("welcome").innerHTML = "Welcome Anonymous";
+                document.getElementById("loginBtn").innerHTML = "Login";
+                document.getElementById("loginBtn").onclick = function(){toLogin()};
+            }
+            refreshTables()
+        }
+        function refreshTables(){
+            const request = new XMLHttpRequest();
+            const url='/querrymaps';
+            request.open("POST", url, true);
+            request.send(null);
+
+            request.onreadystatechange = (e) => {
+                try{
+                    parseTable(request.responseText);
+                    showSaves();
+                }catch(e){}
+            };
+        }
+        function parseTable(jsonStr){
+            if(jsonStr.length === 0) return;
+            let response = JSON.parse(jsonStr);
+            saves = [];
+            for(let i=0; i<response.length; i++){
+                console.log("Response "+i+": "+response[i].id);
+                saves.push([response[i].file, response[i].username, response[i].content, response[i].public, response[i].id]);
+            }
+        }
+        function loadSave(saveTile){
+            console.log("Id: "+saveTile.id);
+            for(let i=0; i<document.getElementById("saveHolder").childElementCount; i++)
+                document.getElementById("saveHolder").children[i].classList.remove("w3-green");
+            for(let i=0; i<document.getElementById("userSaveHolder").childElementCount; i++)
+                document.getElementById("userSaveHolder").children[i].classList.remove("w3-green");
+            saveTile.classList.add("w3-green");
+            selectedSave = saveTile;
+            
+            for(let i=0; i<saves.length; i++)
+                if(selectedSave.id === (saves[i][1]+"."+saves[i][0]) && saves[i][1] === username){
+                    document.getElementById("visToggle").style.visibility = "visible";
+                    if(saves[i][3] === 0)
+                        document.getElementById("visToggle").innerHTML = "Make Visible";
+                    else
+                        document.getElementById("visToggle").innerHTML = "Make Private";
+                    break;
+                }
+                else if(selectedSave.id === (saves[i][1]+"."+saves[i][0]))
+                    document.getElementById("visToggle").style.visibility = "hidden";
+            
+        }
+        function showSaves(){
+            document.getElementById("saveHolder").innerHTML = "<li><h2>Public Maps</h2></li>";
+            document.getElementById("userSaveHolder").innerHTML = "<li><h2>User Maps</h2></li>";
+            for(let i=0; i<saves.length; i++){
+                let save = document.createElement("LI");
+                save.id = saves[i][1]+"."+saves[i][0];
+                save.className = "saveTile w3-container w3-hover-light-green";
+                save.style.cursor = "pointer";
+                save.addEventListener("click", function(){
+                    loadSave(this);
+                });
+                
+                let name = document.createElement("P");
+                name.innerHTML = saves[i][0];
+                name.className = "w3-half";
+                
+                let author = document.createElement("P");
+                author.className = "w3-half";
+                author.innerHTML = saves[i][1];
+                
+                save.appendChild(name);
+                save.appendChild(author);
+                
+                if(saves[i][3] === 0 && saves[i][1] === username)
+                    document.getElementById("userSaveHolder").appendChild(save);
+                else if(saves[i][3] === 1)
+                    document.getElementById("saveHolder").appendChild(save);
+                
+            }
+            if(document.getElementById("saveHolder").childElementCount === 0 && queried === 1){
+                let msg = document.createElement("P");
+                msg.innerHTML = "Nothing to see here";
+                document.getElementById("saveHolder").appendChild(msg);
+            }
+        }
+        function setVisibility(){
+            if(selectedSave !== undefined){
+                for(let i=0; i<saves.length; i++){
+                    if(selectedSave.id === (saves[i][1]+"."+saves[i][0]) && saves[i][1] === username){
+                        const request = new XMLHttpRequest();
+                        const url='/mapvisibility';
+                        let isVisible;
+                        if(saves[i][3] === 0) isVisible = 1;
+                        else isVisible = 0;
+                        let params = 'mapid='+saves[i][4]+'&vis='+isVisible;
+                        request.open("POST", url, true);
+                        request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        request.onreadystatechange = (e) => {
+                            console.log(request.responseText);
+                            document.getElementById("saveHolder").innerHTML = "";
+                            document.getElementById("userSaveHolder").innerHTML = "";
+                            refreshTables();
+                        };
+                        request.send(params);
+                        break;
+                    }
+                    else if (selectedSave.id === (saves[i][1]+"."+saves[i][0]))
+                        document.getElementById("showErr").innerHTML = "You must own the save to change its visibility";
+                }
+            }
+        }
+        function toMap(){
+            document.getElementById("showErr").innerHTML = "";
+            if(selectedSave !== undefined){
+                for(let i=0; i<saves.length; i++){
+                    if(selectedSave.id === (saves[i][1]+"."+saves[i][0])){
+                        window.open("/map.html?mapstr="+saves[i][2], "_self");
+                        break;
+                    }
+                }
+            }
+            else
+                document.getElementById("showErr").innerHTML = "You must select a save file";
+        }
+        function toMenu(){
+            window.open("/", "_self");
+        }
+        function toLogin(){
+            window.open("/login.html", "_self");
+        }
+        function logout(){
+            document.cookie = "username=;path=/;";
+            document.cookie = "name=;path=/;";
+            document.cookie = "userid=;path=/;";
+            dbInit();
+        }
+        function getCookie(name){
+            let cookies = decodeURIComponent(document.cookie);
+            cookies = cookies.split(';');
+            let cookieIndex = cookies.indexOf(";"+name+"=")+name.length+2;
+            for(let i = 0; i <cookies.length; i++) {
+                let c = cookies[i];
+                while (c.charAt(0) === ' ') {
+                  c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                  return c.substring(name.length+1, c.length);
+                }
+              }
+              return null;
+        }
+    </script>
+</html>

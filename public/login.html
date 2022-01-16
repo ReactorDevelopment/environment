@@ -1,0 +1,240 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Title</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <body>
+        <ul style="width: 50%; margin: auto" class="w3-container w3-card w3-blue w3-ul">
+            <li><h2 id="title" class="w3-center"></h2></li>
+            <li>
+                <div>
+                    <input id="nickname" style="width: 100%" class="w3-input" type="text" placeholder="Nickname"/>
+                    <input id="username" style="width: 100%" class="w3-input" type="text" placeholder="Username"/>
+                    <input id="password" style="width: 100%" class="w3-input" type="text" placeholder="Password"/>
+                    <input id="passConfirm" style="width: 100%; display: none" class="w3-input" type="text" placeholder=" Confirm Password"/>
+                    <button id="sendBtn" style="width: 100%;" onclick="sendInfo()"></button> 
+                </div>
+            </li>
+            <li>
+                <button id="switchBtn" style="width: 100%;" onclick="menuSwitch()"></button>
+            </li>
+            <li>
+                <p id="showErr" class="w3-text-red" style="font-weight: bold"></p>
+            </li>
+        </ul>
+    </body>
+    <script>
+        let mapStr;
+        let fileName;
+        let menuType;
+        if(window.location.href.indexOf("mapstr=") !== -1){
+            mapStr = window.location.href;
+            mapStr = decodeURI(mapStr.substring(mapStr.indexOf("mapstr=")+7));
+            fileName = window.location.href;
+            fileName = decodeURI(fileName.substring(fileName.indexOf("file=")+5, fileName.indexOf("&")));
+        }
+        let name = getCookie("name");
+        let userId = getCookie("userid");
+        let username = getCookie("username");
+        if(name !== null && name !== ""){
+            //let json = JSON.parse("{\"id\": \""+userId+"\", \"username\": \""+username+"\", \"name\": \""+name+"\"}");
+            //updateMaps(json);
+            bypasLogin();
+        }
+        loginInit();
+        function loginInit(){
+            menuType = "login";
+            document.getElementById("title").innerHTML = "Login";
+            document.getElementById("sendBtn").innerHTML = "Login";
+            document.getElementById("switchBtn").innerHTML = "Dont have an account? Sign Up!";
+            document.getElementById("passConfirm").style.display = "none";
+            document.getElementById("nickname").style.display = "none";
+            
+        }
+        function signUpInit(){
+            menuType = "signup";
+            document.getElementById("title").innerHTML = "Sign Up";
+            document.getElementById("sendBtn").innerHTML = "Sign Up";
+            document.getElementById("switchBtn").innerHTML = "Already have an account? Log In!";
+            document.getElementById("passConfirm").style.display = "block";
+            document.getElementById("nickname").style.display = "block";
+        }
+        function menuSwitch(){
+            if(menuType === "login")
+                signUpInit()
+            else
+                loginInit()
+        }
+        function fieldCheck(){
+            let valid = false;
+            if(document.getElementById("nickname").value === "" && menuType === "signup")
+                document.getElementById("showErr").innerHTML = "Please enter a nickname";
+            else if(document.getElementById("username").value === "")
+                document.getElementById("showErr").innerHTML = "You must enter a username";
+            else if(document.getElementById("password").value === "")
+                document.getElementById("showErr").innerHTML = "You must enter a password";
+            else if(document.getElementById("passConfirm").value === "" && menuType === "signup")
+                document.getElementById("showErr").innerHTML = "Please confirm your password";
+            else if(document.getElementById("passConfirm").value !== document.getElementById("password").value && menuType === "signup")
+                document.getElementById("showErr").innerHTML = "Passwords must match";
+            else
+                valid = true;
+            return valid;
+        }
+        function sendInfo(){
+            if(!fieldCheck()) return;
+            if(menuType === "login"){
+                getUsers(function(req){
+                    console.log(req.responseText);
+                    let json = null;
+                    try{
+                        json = JSON.parse(req.responseText);
+                    }catch(e){
+                        //document.getElementById("showErr").innerHTML = "Username or password is incorrect";
+                    }
+                    if(json === null || json.length === 0)
+                        loginError();
+                    else{
+                        updateMaps(json);
+                    }
+                });
+            }
+            else{
+                const request = new XMLHttpRequest();
+                const url='/updateusers';
+                let params;
+                params = 'user='+document.getElementById("username").value+'&password='+document.getElementById("password").value
+                    +'&name='+document.getElementById("nickname").value;
+                request.open("POST", url, true);
+                request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                request.onreadystatechange = (e) => {
+                    console.log(request.responseText);
+                    getUsers(function(req) {
+                        console.log(req.responseText);
+                        let json = null;
+                        try{
+                            json = JSON.parse(req.responseText);
+                        }catch(e){
+                            //document.getElementById("showErr").innerHTML = "Username or password is incorrect";
+                        }
+                        updateMaps(json);
+                    });
+                };
+                request.send(params);
+            }
+        }
+        function bypasLogin(){
+            const request = new XMLHttpRequest();
+            const url='/updatemaps';
+            let params = 'update=true&file='+fileName+'&mapstr='+mapStr+'&userId='+userId;
+            request.open("POST", url, true);
+            request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            //request.setRequestHeader("Content-length", params.length);
+            //request.setRequestHeader("Connection", "close");
+
+            request.onreadystatechange = (e) => {
+                console.log(request.responseText);
+                window.open("/database.html", "_self");
+            };
+            request.send(params);
+        }
+        function updateMaps(json){
+            document.getElementById("showErr").innerHTML = "";
+            document.cookie = "username="+json[0].username+";path=/;";
+            document.cookie = "userid="+json[0].id+";path=/;";
+            document.cookie = "name="+json[0].name+";path=/;";
+            const request = new XMLHttpRequest();
+            if(mapStr !== undefined){
+                const url='/updatemaps';
+                let params = 'update=true&file='+fileName+'&mapstr='+mapStr+'&userId='+json[0].id;
+                request.open("POST", url, true);
+                request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                //request.setRequestHeader("Content-length", params.length);
+                //request.setRequestHeader("Connection", "close");
+
+                request.onreadystatechange = (e) => {
+                    console.log(request.responseText);
+                    window.open("/database.html", "_self");
+                };
+                request.send(params);
+            }
+            else
+                window.open("/database.html", "_self");
+        }
+        function getUsers(readyFunc){
+            const request = new XMLHttpRequest();
+            const url='/querryusers';
+            let params;
+            params = 'user='+document.getElementById("username").value+'&password='+document.getElementById("password").value;
+            request.open("POST", url, true);
+            request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            request.onreadystatechange = (e) => {
+                readyFunc(request);
+            };
+            request.send(params);
+        }
+        async function loginError(){
+            await new Promise(r => setTimeout(r, 200));
+            document.getElementById("showErr").innerHTML = "Username or password is incorrect";
+        }
+        function getCookie(name){
+            let cookies = decodeURIComponent(document.cookie);
+            cookies = cookies.split(';');
+            let cookieIndex = cookies.indexOf(";"+name+"=")+name.length+2;
+            for(let i = 0; i <cookies.length; i++) {
+                let c = cookies[i];
+                while (c.charAt(0) === ' ') {
+                  c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                  return c.substring(name.length+1, c.length);
+                }
+              }
+              return null;
+        }
+        /*const request = new XMLHttpRequest();
+            const url='/querryusers';
+            let params;
+            params = 'user='+document.getElementById("username").value+'&password='+document.getElementById("password").value;
+            request.open("POST", url, true);
+            request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            request.onreadystatechange = (e) => {
+                console.log(request.responseText);
+                let json = null;
+                try{
+                    json = JSON.parse(request.responseText);
+                }catch(e){
+                    //document.getElementById("showErr").innerHTML = "Username or password is incorrect";
+                }
+                if(json === null || json.length === 0)
+                    loginError()
+                else{
+                    document.getElementById("showErr").innerHTML = "";
+                    document.cookie = "username="+json[0].username+";path=/;";
+                    document.cookie = "name="+json[0].name+";path=/;";
+                    const request = new XMLHttpRequest();
+                    if(mapStr !== undefined){
+                        const url='/updatemaps';
+                        let params = 'update=true&file='+fileName+'&mapstr='+mapStr+'&userId='+json[0].id;
+                        request.open("POST", url, true);
+                        request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        //request.setRequestHeader("Content-length", params.length);
+                        //request.setRequestHeader("Connection", "close");
+        
+                        request.onreadystatechange = (e) => {
+                            console.log(request.responseText);
+                            window.open("/database.html", "_self");
+                        };
+                        request.send(params);
+                    }
+                    else
+                        window.open("/database.html", "_self");
+                }
+                    
+            };
+            request.send(params);*/
+    </script>
+</html>

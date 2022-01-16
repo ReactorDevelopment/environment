@@ -1,0 +1,110 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Title</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="mapController.js"></script>
+    </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <body style="background: #ccffcc">
+        <h2 id="welcome" class="w3-center"></h2>
+        <p style="width: 50%; margin: auto">&nbsp;&nbsp;&nbsp;&nbsp;Welcome to Videntium, the best tool for viewing maps for Imperium ouside of the game itself.  
+        You can upload your maps to view them in various map modes for data bout your playthrough.  
+        You can also save your maps to be stored privatley in your account then look at hte maps that have been made public by other users!</p>
+        <div style="position: absolute; bottom: 0; height: 40%; width: 100%" class="w3-container w3-topbar w3-border-green">
+            <div class="w3-half w3-container" style="padding-top: 20px;">
+                <div style="float:left; height: 100%;" class="w3-half w3-container">
+                    <img onclick="toMap()" style="visibility: visible; width: 100px; height: auto; cursor: pointer;" src="open.png"/>
+                    <p>Open Map</p>
+                </div>
+                <p id="fileErr" style="display: none; position: absolute; bottom: 0; color: red;"></p>
+                <div style="float:right; height: 100%" class="w3-half w3-container">
+                    <label for="mapSelect">
+                        <img style="width: 100px; height: auto; cursor: pointer;" src="upload.png"/>
+                    </label>
+                    <input id="mapSelect" type="file" style="display: none;"/>
+                    <p>Upload Map</p>
+                </div>
+            </div>
+            <div class="w3-half w3-container" style="padding-top: 20px;">
+                <div style="height: 100%; float: right" class="w3-half w3-container">
+                    <img onclick="toDb()" style="width: 100px; height: auto; cursor: pointer;" src="server.png"/>
+                    <p>View Other Maps</p>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script>
+        var mapStr;
+        var fileName;
+        initIndex();
+        function initIndex(){
+            let name = getCookie("name");
+            if(name !== null && name !== "")
+                document.getElementById("welcome").innerHTML = "Welcome "+name;
+            else
+                document.getElementById("welcome").innerHTML = "Welcome Anonymous";
+            
+        }
+        function toMap(){
+            loadFile(document.getElementById("mapSelect"));
+            if(mapStr !== undefined){
+                /*const request = new XMLHttpRequest();
+                const url='/toMap';
+                request.open("GET", url, true);
+                request.send(null);
+
+                request.onreadystatechange = (e) => {
+                    console.log(request.responseText);
+                    window.open("/toMap?mapstr="+mapStr, "_self");
+                };*/
+                if(mapStr === "BAD_TYPE"){
+                    document.getElementById("fileErr").innerHTML = "File must be of type .imprm";
+                    document.getElementById("fileErr").style.display = "block";
+                }
+                else window.open("/map.html?file="+fileName+"&mapstr="+mapStr, "_self");
+            }
+            else{
+                document.getElementById("fileErr").innerHTML = "No file selected";
+                document.getElementById("fileErr").style.display = "block";
+            }
+        }
+        function loadFile(input){
+            let file = input.files[0];
+            if(file !== undefined){
+                fileName = file.name;
+                document.getElementById("fileErr").innerHTML = "";
+                document.getElementById("fileErr").style.display = "none";
+                console.log(file);
+                let fr=new FileReader();
+                fr.onload=function(){
+                    console.log(fr.result);
+                    if(file.name.substring(file.name.lastIndexOf(".")) === ".imprm")
+                        mapStr = fr.result;
+                    else
+                        mapStr = "BAD_TYPE";
+                }
+                fr.readAsText(file);
+            }
+        }
+        function toDb(){
+            window.open("/database.html", "_self");
+        }
+        function getCookie(name){
+            let cookies = decodeURIComponent(document.cookie);
+            cookies = cookies.split(';');
+            let cookieIndex = cookies.indexOf(";"+name+"=")+name.length+2;
+            for(let i = 0; i <cookies.length; i++) {
+                let c = cookies[i];
+                while (c.charAt(0) === ' ') {
+                  c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                  return c.substring(name.length+1, c.length);
+                }
+              }
+              return null;
+        }
+    </script>
+</html>
